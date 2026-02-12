@@ -1,138 +1,95 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
-import { useToast } from "@/hooks/use-toast";
-import { api, buildUrl } from "@/shared/routes";
+import supabase from "@/lib/supabase-client";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export function useNotes() {
-  return useQuery({
-    queryKey: [api.notes.list.path],
-    queryFn: async () => {
-      const res = await fetch(api.notes.list.path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch notes");
-      const data = await res.json();
-      return api.notes.list.responses[200].parse(data);
-    },
-  });
-}
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export function useNote(id: number | null) {
-  return useQuery({
-    queryKey: [api.notes.get.path, id],
-    queryFn: async () => {
-      if (!id) return null;
-      const url = buildUrl(api.notes.get.path, { id });
-      const res = await fetch(url, { credentials: "include" });
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch note");
-      const data = await res.json();
-      return api.notes.get.responses[200].parse(data);
-    },
-    enabled: !!id,
-  });
-}
+  async function getToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token;
+  }
 
-export function useCreateNote() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (note) => {
-      const res = await fetch(api.notes.create.path, {
-        method: api.notes.create.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(note),
-        credentials: "include",
+  async function fetchNotes() {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/notes`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to create note");
-      }
-
       const data = await res.json();
-      return api.notes.create.responses[201].parse(data);
-    },
-    onSuccess: (newNote) => {
-      queryClient.invalidateQueries({ queryKey: [api.notes.list.path] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-}
+      if (res.ok) setNotes(data);
+      else setError(data.error);
+    } catch (err) {
+      if (err instanceof Error) setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-export function useUpdateNote() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+  async function createNote(title: string, content: string) {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/notes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title, content }),
+    });
+    const data = await res.json();
+    if (res.ok) setNotes((prev) => [...prev, ...data]);
+    else setError(data.error);
+  }
 
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: number }) => {
-      const url = buildUrl(api.notes.update.path, { id });
-      const res = await fetch(url, {
-        method: api.notes.update.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to update note");
-      }
-
-      const data = await res.json();
-      return api.notes.update.responses[200].parse(data);
-    },
-    onSuccess: (updatedNote) => {
-      queryClient.invalidateQueries({ queryKey: [api.notes.list.path] });
-      queryClient.setQueryData(
-        [api.notes.get.path, updatedNote.id],
-        updatedNote,
+  async function updateNote(id: string, title: string, content: string) {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/notes/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title, content }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setNotes((prev) =>
+        prev.map((note) => (note.id === id ? { ...note, ...data[0] } : note)),
       );
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-}
+    } else setError(data.error);
+  }
 
-export function useDeleteNote() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+  async function deleteNote(id: string) {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/notes/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setNotes((prev) => prev.filter((note) => note.id !== id));
+    } else {
+      const data = await res.json();
+      setError(data.error);
+    }
+  }
 
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const url = buildUrl(api.notes.delete.path, { id });
-      const res = await fetch(url, {
-        method: api.notes.delete.method,
-        credentials: "include",
-      });
+  useEffect(() => {
+    fetchNotes();
+  }, []);
 
-      if (!res.ok) {
-        throw new Error("Failed to delete note");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.notes.list.path] });
-      toast({
-        title: "Deleted",
-        description: "Note has been moved to trash.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  return {
+    notes,
+    loading,
+    error,
+    fetchNotes,
+    createNote,
+    updateNote,
+    deleteNote,
+  };
 }
