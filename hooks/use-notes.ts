@@ -1,11 +1,7 @@
-import { useToast } from "@/hooks/use-toast";
-import {
-        api,
-        buildUrl,
-        type CreateNoteRequest,
-        type UpdateNoteRequest,
-} from "@/shared/routes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useToast } from "@/hooks/use-toast";
+import { api, buildUrl } from "@/shared/routes";
 
 export function useNotes() {
   return useQuery({
@@ -40,7 +36,7 @@ export function useCreateNote() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (note: CreateNoteRequest) => {
+    mutationFn: async (note) => {
       const res = await fetch(api.notes.create.path, {
         method: api.notes.create.method,
         headers: { "Content-Type": "application/json" },
@@ -58,7 +54,6 @@ export function useCreateNote() {
     },
     onSuccess: (newNote) => {
       queryClient.invalidateQueries({ queryKey: [api.notes.list.path] });
-      // Optimistically update the list if possible, or just invalidate
     },
     onError: (error: Error) => {
       toast({
@@ -75,10 +70,7 @@ export function useUpdateNote() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...updates
-    }: { id: number } & UpdateNoteRequest) => {
+    mutationFn: async ({ id, ...updates }: { id: number }) => {
       const url = buildUrl(api.notes.update.path, { id });
       const res = await fetch(url, {
         method: api.notes.update.method,
