@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 
 import Providers from "@/components/providers";
+import {
+  CheckCircle2,
+  CircleXIcon,
+  InfoIcon,
+  Loader2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,6 +37,24 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <Toaster
+          position="top-center"
+          richColors
+          closeButton
+          visibleToasts={2}
+          duration={2000}
+          theme="dark"
+          gap={1.5}
+          expand
+          swipeDirections={["top", "left", "right"]}
+          icons={{
+            loading: <Loader2Icon className="w-4 h-4 animate-spin" />,
+            success: <CheckCircle2 className="w-4 h-4 text-green-500" />,
+            info: <InfoIcon className="w-4 h-4 text-blue-500" />,
+            error: <CircleXIcon className="w-4 h-4 text-red-500" />,
+            warning: <TriangleAlertIcon className="w-4 h-4 text-yellow-500" />,
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
