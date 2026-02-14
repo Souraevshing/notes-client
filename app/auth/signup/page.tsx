@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
+import { toast } from "sonner";
 
 import AuthLayout from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
@@ -10,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { LoaderIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import Link from "next/link";
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -20,16 +21,18 @@ export default function Signup() {
 
   async function handleSignup() {
     if (!email || !password) {
-      alert("Please enter both email and password.");
+      toast.error("Please enter both email and password.");
       return;
     }
 
     try {
       setLoading(true);
       await signup(email, password);
-      alert("Signup successful! Check your email.");
+      toast.success("Signup successful! Check your email.");
+      setEmail("");
+      setPassword("");
     } catch (err) {
-      if (err instanceof Error) alert(err.message);
+      if (err instanceof Error) toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -71,7 +74,6 @@ export default function Signup() {
             {loading ? (
               <div className="flex items-center gap-2">
                 <LoaderIcon className="w-4 h-4 animate-spin" />
-                <span>Creating account...</span>
               </div>
             ) : (
               "Sign Up"
