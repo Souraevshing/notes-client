@@ -20,63 +20,59 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { RootState } from "@/store";
 
-import { useCreateNote, useDeleteNote, useNotes } from "@/hooks/use-notes";
+import { useNotes } from "@/hooks/use-notes";
+import type { Note } from "@/shared/schema";
 import { setFilter, setSelectedNoteId } from "@/store/notes-slice";
 
 export default function Home() {
   const dispatch = useDispatch();
+
   const selectedId = useSelector(
     (state: RootState) => state.notes.selectedNoteId,
   );
+
   const filter = useSelector((state: RootState) => state.notes.filter);
 
-  const { data: notes = [], isLoading } = useNotes();
-  const createNote = useCreateNote();
-  const deleteNote = useDeleteNote();
+  const { notes, isLoading, error, createNote, deleteNote } = useNotes();
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredNotes = useMemo(() => {
-    return notes
+    return (notes as Note[])
       .filter((note) => {
         const matchesFilter =
           filter === "all" || (filter === "favorites" && note.isFavorite);
+
         const matchesSearch =
           note.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           note.content?.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesFilter && matchesSearch;
       })
-      .sort((a, b) => {
-        return (
-          new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime()
-        );
-      });
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime(),
+      );
   }, [notes, filter, searchQuery]);
 
   const handleCreate = async () => {
     try {
-      const newNote = await createNote.mutateAsync({
-        title: "",
-        content: "",
-      });
+      const newNote = await createNote.mutateAsync({ title: "", content: "" });
       dispatch(setSelectedNoteId(newNote.id));
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error("Failed to create note:", error);
     }
   };
 
   const handleDelete = async () => {
     if (!selectedId) return;
     if (confirm("Are you sure you want to delete this note?")) {
-      await deleteNote.mutateAsync(selectedId);
+      await deleteNote.mutateAsync(String(selectedId));
       dispatch(setSelectedNoteId(null));
     }
   };
 
   const selectedNote = notes.find((n) => n.id === selectedId);
 
-  // Sidebar Content
   const sidebar = (
     <div className="flex flex-col h-full bg-slate-50/50">
       <div className="p-4 border-b border-border/40">

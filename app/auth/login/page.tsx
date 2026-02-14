@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoaderIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 
 export default function Login() {
   const { login } = useAuth();
@@ -17,6 +19,11 @@ export default function Login() {
   const [loading, setLoading] = React.useState(false);
 
   async function handleLogin() {
+    if (!email || !password) {
+      alert("Please enter both email and password.");
+      return;
+    }
+
     try {
       setLoading(true);
       await login(email, password);
@@ -41,8 +48,9 @@ export default function Login() {
           <div className="space-y-2">
             <Label>Email</Label>
             <Input
+              required
               type="email"
-              placeholder="you@example.com"
+              placeholder="Enter email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -51,16 +59,30 @@ export default function Login() {
           <div className="space-y-2">
             <Label>Password</Label>
             <Input
+              required
               type="password"
-              placeholder="Enter your password"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           <Button onClick={handleLogin} className="w-full" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <LoaderIcon className="w-4 h-4 animate-spin" />
+                <span>Logging in...</span>
+              </div>
+            ) : (
+              "Login"
+            )}
           </Button>
+          <p className="text-sm text-center text-muted-foreground">
+            Not registered?{" "}
+            <Link href="/auth/signup" className="underline">
+              Sign Up
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </AuthLayout>

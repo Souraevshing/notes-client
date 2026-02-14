@@ -1,5 +1,16 @@
 import { z } from "zod";
+
 import { insertNoteSchema, notes } from "./schema";
+
+export const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+export const ROUTES = {
+  auth: {
+    signup: `${API_URL}/api/v1/auth/signup`,
+    login: `${API_URL}/api/v1/auth/signin`,
+  },
+  notes: `${API_URL}/api/v1/notes`,
+};
 
 export const errorSchemas = {
   validation: z.object({

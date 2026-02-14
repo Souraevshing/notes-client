@@ -6,8 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useUpdateNote } from "@/hooks/use-notes";
-import { useToast } from "@/hooks/use-toast";
+import { useNotes } from "@/hooks/use-notes";
 import { cn } from "@/lib/utils";
 import { type Note } from "@/shared/schema";
 
@@ -22,14 +21,14 @@ export function Editor({
   const [content, setContent] = useState(note.content || "");
   const [isSaved, setIsSaved] = useState(true);
 
-  const updateNote = useUpdateNote();
-  const { toast } = useToast();
+  const { updateNote } = useNotes();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitle(note.title);
     setContent(note.content || "");
     setIsSaved(true);
-  }, [note.id]); // Only reset when ID changes
+  }, [note.id]);
 
   const debouncedTitle = useDebounce(title, 500);
   const debouncedContent = useDebounce(content, 1000);
@@ -46,18 +45,13 @@ export function Editor({
       setIsSaved(false);
       try {
         await updateNote.mutateAsync({
-          id: note.id,
+          id: String(note.id),
           title: debouncedTitle,
           content: debouncedContent,
         });
         setIsSaved(true);
       } catch (error) {
         console.error("Failed to save note:", error);
-        toast({
-          title: "Error",
-          description: "Failed to save note. Please try again.",
-          variant: "destructive",
-        });
         setIsSaved(true);
       }
     };
@@ -67,7 +61,7 @@ export function Editor({
 
   const toggleFavorite = () => {
     updateNote.mutate({
-      id: note.id,
+      id: String(note.id),
       isFavorite: !note.isFavorite,
     });
   };

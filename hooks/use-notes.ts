@@ -1,95 +1,115 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import supabase from "@/lib/supabase-client";
+import { ROUTES } from "@/shared/routes";
+import { CreateNoteRequest, Note, UpdateNoteRequest } from "@/shared/schema";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+async function getToken() {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+}
+
+async function fetchNotes() {
+  const token = await getToken();
+  const res = await fetch(ROUTES.notes, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to fetch notes");
+  return res.json();
+}
+
+async function createNoteFn(note: CreateNoteRequest): Promise<Note> {
+  const token = await getToken();
+  const res = await fetch(ROUTES.notes, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(note),
+  });
+  if (!res.ok) throw new Error("Failed to create note");
+  return res.json();
+}
+
+async function updateNoteFn(
+  note: {
+    id: string;
+  } & Partial<UpdateNoteRequest>,
+): Promise<Note> {
+  const token = await getToken();
+  const body: Partial<UpdateNoteRequest> = {};
+  if (note.title !== undefined) {
+    body.title = note.title;
+  }
+  if (note.content !== undefined) {
+    body.content = note.content;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((note as any).isFavorite !== undefined)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (body as any).isFavorite = (note as any).isFavorite;
+
+  const res = await fetch(`${ROUTES.notes}/${note.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Failed to update note");
+  return res.json();
+}
+
+async function deleteNoteFn(id: string) {
+  const token = await getToken();
+  const res = await fetch(`${ROUTES.notes}/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to delete note");
+  return res.json();
+}
 
 export function useNotes() {
-  const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  async function getToken() {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token;
-  }
-
-  async function fetchNotes() {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/notes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) setNotes(data);
-      else setError(data.error);
-    } catch (err) {
-      if (err instanceof Error) setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function createNote(title: string, content: string) {
-    const token = await getToken();
-    const res = await fetch(`${API_URL}/notes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ title, content }),
-    });
-    const data = await res.json();
-    if (res.ok) setNotes((prev) => [...prev, ...data]);
-    else setError(data.error);
-  }
-
-  async function updateNote(id: string, title: string, content: string) {
-    const token = await getToken();
-    const res = await fetch(`${API_URL}/notes/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ title, content }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setNotes((prev) =>
-        prev.map((note) => (note.id === id ? { ...note, ...data[0] } : note)),
-      );
-    } else setError(data.error);
-  }
-
-  async function deleteNote(id: string) {
-    const token = await getToken();
-    const res = await fetch(`${API_URL}/notes/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setNotes((prev) => prev.filter((note) => note.id !== id));
-    } else {
-      const data = await res.json();
-      setError(data.error);
-    }
-  }
-
-  useEffect(() => {
-    fetchNotes();
-  }, []);
-
-  return {
-    notes,
-    loading,
+  const {
+    data: notes = [],
+    isLoading,
     error,
-    fetchNotes,
-    createNote,
-    updateNote,
-    deleteNote,
-  };
+  } = useQuery<Note[]>({
+    queryKey: ["notes"],
+    queryFn: fetchNotes,
+  });
+
+  const createNote = useMutation<Note, Error, CreateNoteRequest>({
+    mutationFn: createNoteFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+  });
+
+  const updateNote = useMutation<
+    Note,
+    Error,
+    { id: string } & Partial<UpdateNoteRequest>
+  >({
+    mutationFn: updateNoteFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: deleteNoteFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+  });
+
+  return { notes, isLoading, error, createNote, updateNote, deleteNote };
 }

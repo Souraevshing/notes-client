@@ -1,6 +1,5 @@
 "use client";
 
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { queryClient } from "@/lib/query-client";
 import { store } from "@/store";
@@ -16,10 +15,7 @@ export default function Providers({
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Provider store={store}>
-          <Toaster />
-          {children}
-        </Provider>
+        <Provider store={store}>{children}</Provider>
       </TooltipProvider>
     </QueryClientProvider>
   );
