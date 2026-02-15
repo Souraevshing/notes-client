@@ -1,8 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { format } from "date-fns";
 import { Check, Clock, Star, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -17,14 +19,13 @@ export function Editor({
   note: Note;
   onDelete: () => void;
 }) {
-  const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content || "");
-  const [isSaved, setIsSaved] = useState(true);
+  const [title, setTitle] = React.useState(note.title);
+  const [content, setContent] = React.useState(note.content || "");
+  const [isSaved, setIsSaved] = React.useState(true);
 
   const { updateNote } = useNotes();
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  React.useEffect(() => {
     setTitle(note.title);
     setContent(note.content || "");
     setIsSaved(true);
@@ -33,7 +34,7 @@ export function Editor({
   const debouncedTitle = useDebounce(title, 500);
   const debouncedContent = useDebounce(content, 1000);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (
       debouncedTitle === note.title &&
       debouncedContent === (note.content || "")
@@ -51,7 +52,9 @@ export function Editor({
         });
         setIsSaved(true);
       } catch (error) {
-        console.error("Failed to save note:", error);
+        if (error instanceof Error) {
+          toast.error(`Failed to save note: ${error.message}`);
+        }
         setIsSaved(true);
       }
     };
@@ -64,6 +67,9 @@ export function Editor({
       id: String(note.id),
       isFavorite: !note.isFavorite,
     });
+    toast.success(
+      `Note marked as ${!note.isFavorite ? "favorite" : "not favorite"}`,
+    );
   };
 
   return (

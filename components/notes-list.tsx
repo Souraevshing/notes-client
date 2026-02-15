@@ -20,7 +20,7 @@ export function NoteList({
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2 p-4 animate-pulse">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="h-24 bg-muted rounded-xl w-full" />
         ))}
       </div>

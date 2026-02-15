@@ -6,12 +6,23 @@ import supabase from "@/lib/supabase-client";
 import { ROUTES } from "@/shared/routes";
 import { CreateNoteRequest, Note, UpdateNoteRequest } from "@/shared/schema";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapNote(row: any): Note {
+  return {
+    id: row.id,
+    title: row.title ?? "",
+    content: row.content ?? "",
+    isFavorite: Boolean(row.is_favorite ?? false),
+    createdAt: row.created_at ?? null,
+  };
+}
+
 async function getToken() {
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token;
 }
 
-async function fetchNotes() {
+async function fetchNotes(): Promise<Note[]> {
   const token = await getToken();
   const res = await fetch(ROUTES.notes, {
     headers: {
@@ -20,7 +31,8 @@ async function fetchNotes() {
     },
   });
   if (!res.ok) throw new Error("Failed to fetch notes");
-  return res.json();
+  const data = await res.json();
+  return (Array.isArray(data) ? data : (data.data ?? [])).map(mapNote);
 }
 
 async function createNoteFn(note: CreateNoteRequest): Promise<Note> {
@@ -31,10 +43,15 @@ async function createNoteFn(note: CreateNoteRequest): Promise<Note> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(note),
+    body: JSON.stringify({
+      title: note.title,
+      content: note.content,
+    }),
   });
   if (!res.ok) throw new Error("Failed to create note");
-  return res.json();
+  const data = await res.json();
+  const row = Array.isArray(data) ? data[0] : (data.data ?? data);
+  return mapNote(row);
 }
 
 async function updateNoteFn(
@@ -43,17 +60,15 @@ async function updateNoteFn(
   } & Partial<UpdateNoteRequest>,
 ): Promise<Note> {
   const token = await getToken();
-  const body: Partial<UpdateNoteRequest> = {};
-  if (note.title !== undefined) {
-    body.title = note.title;
-  }
-  if (note.content !== undefined) {
-    body.content = note.content;
-  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((note as any).isFavorite !== undefined)
+  const body: any = {};
+  if (note.title !== undefined) body.title = note.title;
+  if (note.content !== undefined) body.content = note.content;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((note as any).isFavorite !== undefined) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (body as any).isFavorite = (note as any).isFavorite;
+    body.is_favorite = (note as any).isFavorite;
+  }
 
   const res = await fetch(`${ROUTES.notes}/${note.id}`, {
     method: "PUT",
@@ -64,7 +79,9 @@ async function updateNoteFn(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("Failed to update note");
-  return res.json();
+  const data = await res.json();
+  const row = Array.isArray(data) ? data[0] : (data.data ?? data);
+  return mapNote(row);
 }
 
 async function deleteNoteFn(id: string) {
@@ -103,7 +120,39 @@ export function useNotes() {
     { id: string } & Partial<UpdateNoteRequest>
   >({
     mutationFn: updateNoteFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ["notes"] });
+      const previous = queryClient.getQueryData<Note[]>(["notes"]);
+      if (previous) {
+        queryClient.setQueryData<Note[]>(
+          ["notes"],
+          previous.map((n) =>
+            n.id === Number(vars.id)
+              ? {
+                  ...n,
+                  ...(vars.title !== undefined ? { title: vars.title } : {}),
+                  ...(vars.content !== undefined
+                    ? { content: vars.content }
+                    : {}),
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ...((vars as any).isFavorite !== undefined
+                    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      { isFavorite: (vars as any).isFavorite }
+                    : {}),
+                }
+              : n,
+          ),
+        );
+      }
+      return { previous };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notes"], context.previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
   });
 
   const deleteNote = useMutation({

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React from "react";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ import { LoaderIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function Signup() {
+  const router = useRouter();
   const { signup } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -31,6 +33,7 @@ export default function Signup() {
       toast.success("Signup successful! Check your email.");
       setEmail("");
       setPassword("");
+      router.push("/auth/login");
     } catch (err) {
       if (err instanceof Error) toast.error(err.message);
     } finally {

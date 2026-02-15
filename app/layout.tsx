@@ -1,8 +1,3 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
-
-import Providers from "@/components/providers";
 import {
   CheckCircle2,
   CircleXIcon,
@@ -10,6 +5,12 @@ import {
   Loader2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
+
+import Providers from "@/components/providers";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -40,7 +41,7 @@ export default function RootLayout({
         <Toaster
           position="top-center"
           richColors
-          closeButton
+          hotkey={["mod+k", "mod+enter"]}
           visibleToasts={2}
           duration={2000}
           theme="dark"

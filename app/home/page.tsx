@@ -3,13 +3,16 @@
 import {
   Archive,
   Loader2Icon,
+  LogOut,
   NotebookPen,
   Plus,
   Search,
   Star,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "sonner";
 
 import { Editor } from "@/components/editor";
 import { LayoutShell } from "@/components/layout-shell";
@@ -21,10 +24,12 @@ import { cn } from "@/lib/utils";
 import { RootState } from "@/store";
 
 import { useNotes } from "@/hooks/use-notes";
+import supabase from "@/lib/supabase-client";
 import type { Note } from "@/shared/schema";
 import { setFilter, setSelectedNoteId } from "@/store/notes-slice";
 
 export default function Home() {
+  const router = useRouter();
   const dispatch = useDispatch();
 
   const selectedId = useSelector(
@@ -35,9 +40,9 @@ export default function Home() {
 
   const { notes, isLoading, error, createNote, deleteNote } = useNotes();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
 
-  const filteredNotes = useMemo(() => {
+  const filteredNotes = React.useMemo(() => {
     return (notes as Note[])
       .filter((note) => {
         const matchesFilter =
@@ -57,9 +62,12 @@ export default function Home() {
   const handleCreate = async () => {
     try {
       const newNote = await createNote.mutateAsync({ title: "", content: "" });
+      toast.success("Note created");
       dispatch(setSelectedNoteId(newNote.id));
     } catch (error) {
-      console.error("Failed to create note:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create note",
+      );
     }
   };
 
@@ -67,7 +75,22 @@ export default function Home() {
     if (!selectedId) return;
     if (confirm("Are you sure you want to delete this note?")) {
       await deleteNote.mutateAsync(String(selectedId));
+      toast.success("Note deleted");
       dispatch(setSelectedNoteId(null));
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      dispatch(setSelectedNoteId(null));
+      toast.success("Logged out");
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(
+          `${error && error.message ? error.message : "Failed to log out"}`,
+        );
+      }
     }
   };
 
@@ -133,8 +156,60 @@ export default function Home() {
           </span>
         </Button>
       </div>
+
+      <div className="mt-auto p-4 border-t border-border/40">
+        <Button
+          variant="ghost"
+          onClick={handleLogout}
+          className="w-full justify-start gap-3 font-medium text-sm h-10 px-4 rounded-xl text-destructive"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </Button>
+      </div>
     </div>
   );
+
+  React.useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+    }
+  });
+
+  React.useEffect(() => {
+    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((e, session) => {
+      if (e === "SIGNED_OUT") {
+        dispatch(setSelectedNoteId(null));
+        toast.error("Session expired. Please log in again");
+        router.push("/auth/login");
+      }
+
+      if (session?.expires_at) {
+        const expiresInMs = session.expires_at * 1000;
+        const remainingTime = expiresInMs - Date.now();
+        if (remainingTime > 0) {
+          if (expiryTimer) {
+            clearTimeout(expiryTimer);
+            expiryTimer = setTimeout(async () => {
+              await supabase.auth.signOut();
+            }, remainingTime);
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+      if (expiryTimer) {
+        clearTimeout(expiryTimer);
+      }
+    };
+  });
 
   return (
     <LayoutShell sidebar={sidebar}>

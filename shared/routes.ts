@@ -7,7 +7,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export const ROUTES = {
   auth: {
     signup: `${API_URL}/api/v1/auth/signup`,
-    login: `${API_URL}/api/v1/auth/signin`,
+    login: `${API_URL}/api/v1/auth/login`,
   },
   notes: `${API_URL}/api/v1/notes`,
 };
@@ -29,14 +29,14 @@ export const api = {
   notes: {
     list: {
       method: "GET" as const,
-      path: "/api/notes" as const,
+      path: "/" as const,
       responses: {
         200: z.array(z.custom<typeof notes.$inferSelect>()),
       },
     },
     get: {
       method: "GET" as const,
-      path: "/api/notes/:id" as const,
+      path: "/:id" as const,
       responses: {
         200: z.custom<typeof notes.$inferSelect>(),
         404: errorSchemas.notFound,
@@ -44,7 +44,7 @@ export const api = {
     },
     create: {
       method: "POST" as const,
-      path: "/api/notes" as const,
+      path: "/" as const,
       input: insertNoteSchema,
       responses: {
         201: z.custom<typeof notes.$inferSelect>(),
@@ -53,7 +53,7 @@ export const api = {
     },
     update: {
       method: "PUT" as const,
-      path: "/api/notes/:id" as const,
+      path: "/:id" as const,
       input: insertNoteSchema.partial(),
       responses: {
         200: z.custom<typeof notes.$inferSelect>(),
@@ -63,7 +63,7 @@ export const api = {
     },
     delete: {
       method: "DELETE" as const,
-      path: "/api/notes/:id" as const,
+      path: "/:id" as const,
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
