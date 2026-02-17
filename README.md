@@ -1,36 +1,228 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Notes App — Frontend
 
-## Getting Started
+A modern notes application frontend built with **Next.js (App Router)**, **React**, **TypeScript**, **TailwindCSS**, **shadcn/ui**, and **Supabase Auth**.  
+The app provides authenticated note management with favorites, CRUD operations, and a responsive UI.
 
-First, run the development server:
+---
+
+## 🚀 Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **UI:** TailwindCSS + shadcn/ui
+- **State/Data:** React Query + local UI state
+- **Auth:** Supabase Authentication (JWT)
+- **API:** REST backend (`/api/v1`)
+
+---
+
+## ✨ Features
+
+- Supabase email/password authentication
+- Protected routes (redirect if not logged in)
+- Create, edit, delete notes
+- Mark notes as favorite
+- Optimistic UI updates
+- Responsive layout shell
+- Type-safe API layer
+
+---
+
+## 📂 Folder Structure
+
+```text
+app/
+  layout.tsx
+  page.tsx
+  auth/
+    login/page.tsx
+    signup/page.tsx
+
+components/
+  layout-shell.tsx
+  notes-list.tsx
+  editor.tsx
+  auth/
+    AuthLayout.tsx
+
+hooks/
+  use-auth.ts
+  use-notes.ts
+  use-debounce.ts
+
+lib/
+  supabase-client.ts
+  query-client.ts
+  utils.ts
+
+store/
+  notes-slice.ts
+  index.ts
+
+shared/
+  routes.ts
+  schema.ts
+
+types/
+  note.ts
+```
+
+---
+
+## 🔐 Authentication Flow
+
+1. User signs up / logs in via Supabase  
+2. Supabase returns access token (JWT)  
+3. Token stored in Supabase session  
+4. `useAuth()` exposes session  
+5. Protected pages check session  
+
+- ❌ no session → redirect `/auth/login`  
+- ✅ session → render app  
+
+---
+
+## 📡 API Integration
+
+Backend base URL:
+
+```text
+http://localhost:8000/api/v1
+```
+
+Endpoints used:
+
+```http
+GET    /notes
+POST   /notes
+PUT    /notes/:id
+DELETE /notes/:id
+```
+
+All requests include:
+
+```http
+Authorization: Bearer <supabase_access_token>
+```
+
+---
+
+## ⚙️ Environment Variables
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## 🧩 Core Hooks
+
+### useAuth
+
+- Get session
+- Login / signup
+- Logout
+- Redirect protection
+
+### useNotes
+
+- Fetch notes (React Query)
+- Create / update / delete
+- Cache invalidation
+- Favorite toggle
+
+---
+
+## 🎨 UI Architecture
+
+- **layout-shell** → main app layout (sidebar + content)
+- **notes-list** → sidebar list + favorite toggle
+- **editor** → note editor
+- **AuthLayout** → auth pages wrapper
+
+---
+
+## ▶️ Getting Started
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🔒 Route Protection
 
-To learn more about Next.js, take a look at the following resources:
+Protected pages use auth guard:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```ts
+const { user, loading } = useAuth();
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+if (!loading && !user) {
+  router.replace("/auth/login");
+  return null;
+}
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🧱 Type Safety
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Shared note type:
+
+```ts
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  isFavorite: boolean;
+}
+```
+
+Used across:
+
+- API layer
+- React state
+- UI components
+
+---
+
+## 📦 Production Build
+
+```bash
+npm run build
+npm start
+```
+
+---
+
+## 📝 Future Improvements
+
+- Offline sync
+- Rich text editor
+- Tags & search
+- Drag reorder
+- Collaborative notes
+
+---
+
+## 👤 Author
+
+Frontend architecture and implementation by **Sourav**
